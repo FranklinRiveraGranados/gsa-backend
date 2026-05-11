@@ -94,9 +94,15 @@ app.post('/api/verify-pin', (req, res) => {
 });
 
 // List Admins
-app.get('/api/admins', verifyPinMiddleware, async (req, res) => {
-    const { data: { users }, error } = await supabase.auth.admin.listUsers();
+app.get('/api/admins', async (req, res) => {
+    const { data, error } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000
+    });
+
     if (error) return res.status(500).json({ error: error.message });
+
+    const users = data?.users || [];
     const admins = users.filter(user => user.user_metadata?.role === 'admin');
     res.json(admins);
 });
