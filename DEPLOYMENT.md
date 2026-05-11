@@ -41,7 +41,40 @@ pm2 start ecosystem.config.js
 - **Ver logs en tiempo real**: `pm2 logs gsa-admin-backend`
 - **Reiniciar app**: `pm2 restart gsa-admin-backend`
 - **Detener app**: `pm2 stop gsa-admin-backend`
-- **Eliminar de la lista**: `pm2 delete gsa-admin-backend`
+
+## Configuración de Dominio y SSL (Nginx)
+
+Si usas Nginx como proxy inverso, sigue estos pasos para configurar tu subdominio:
+
+### 1. Crear el archivo de configuración
+Ve a la carpeta de sitios disponibles y crea uno nuevo (puedes copiar uno existente):
+```bash
+cd /etc/nginx/sites-available/
+cp notify.gestorianegocios.com admin.gestorianegocios.com
+```
+
+### 2. Editar y Limpiar
+Abre el archivo y asegúrate de:
+- Cambiar `server_name` a `admin.gestorianegocios.com`.
+- Cambiar el puerto en `proxy_pass` al puerto de tu backend (ej: `4000`).
+- **IMPORTANTE**: Si copiaste el archivo, borra las líneas de SSL antiguas y el bloque de redirección 301 para evitar conflictos con Certbot.
+
+### 3. Activar el sitio
+Crea el enlace simbólico hacia `sites-enabled`:
+```bash
+ln -s /etc/nginx/sites-available/admin.gestorianegocios.com /etc/nginx/sites-enabled/
+```
+
+### 4. Validar y Reiniciar Nginx
+```bash
+nginx -t             # Verifica que no haya errores de sintaxis
+systemctl reload nginx # Aplica los cambios
+```
+
+### 5. Generar SSL con Certbot
+```bash
+certbot --nginx -d admin.gestorianegocios.com
+```
 
 ## Notas Adicionales
 - El archivo `sections.json` se creará automáticamente en la raíz con las secciones por defecto al iniciar por primera vez.
