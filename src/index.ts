@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
+import axios from 'axios';
 
 import ws from 'ws';
 
@@ -79,7 +80,7 @@ const verifyPinMiddleware = (req: express.Request, res: express.Response, next: 
     }
 };
 
-app.get('/health', (req, res) => {
+app.get('/health', (_, res) => {
     res.json({ status: 'ok' });
 });
 
@@ -94,7 +95,7 @@ app.post('/api/verify-pin', (req, res) => {
 });
 
 // List Admins
-app.get('/api/admins', async (req, res) => {
+app.get('/api/admins', async (_, res) => {
     const { data, error } = await supabase.auth.admin.listUsers({
         page: 1,
         perPage: 1000
@@ -140,7 +141,7 @@ app.delete('/api/admins/:id', verifyPinMiddleware, async (req, res) => {
 });
 
 // Sections Management (Storing in a local JSON file)
-app.get('/api/sections', verifyPinMiddleware, (req, res) => {
+app.get('/api/sections', verifyPinMiddleware, (_, res) => {
     try {
         res.json(getSectionsFromFile());
     } catch (error) {
@@ -173,6 +174,38 @@ app.delete('/api/sections/:id', verifyPinMiddleware, (req, res) => {
         res.status(400).json({ error: 'Failed to delete section' });
     }
 });
+
+//Apis para gestionar usuarios de app chats gestoria
+app.get('/api/users', async (_, res) => {
+    const { data, error } = await supabase
+        .from('app_users')
+        .select('id, email, created_at, updated_at')
+        .order('created_at', { ascending: false });
+    if(error) return res.status(400).json({ error: error.message });
+    res.json(data);
+})
+
+app.post('/api/users', verifyPinMiddleware, async (req, res) => {
+    const { email, password } = req.body;
+
+    try{
+        const response = await axios.post('https://whatsapp.gestorianegocios.com/app/signup', { email, password });
+        res.json(response.data);
+    }catch(error){
+        res.status(500).json({ error : 'Failed to create user' })
+    }
+})
+
+app.delete('/api/users/:id', verifyPinMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const { error: errorAppUsers } = await supabase.from('app_users').delete().eq('id', id); 
+    if (errorAppUsers) return res.status(400).json({ error: errorAppUsers.message });
+
+    const { error: errorDeviceTokens } = await supabase.from('device_tokens').delete().eq('user_id', id);
+    if (errorDeviceTokens) return res.status(400).json({ error: errorDeviceTokens.message });
+
+    res.json({ success: true });
+})
 
 app.listen(port, () => {
     console.log(`Backend listening at http://localhost:${port}`);
